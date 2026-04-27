@@ -1,0 +1,5 @@
+.env
+*.mp4
+data/**/*.mp4
+temp/
+__pycache__/

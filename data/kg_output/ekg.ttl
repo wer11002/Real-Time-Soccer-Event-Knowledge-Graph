@@ -1,0 +1,192 @@
+@prefix data: <http://soccerekg.org/data#> .
+@prefix ekg: <http://soccerekg.org/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+data:event_0009 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0008 ;
+    ekg:hasConfidence 3.335e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 12:00" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:player_adam_armstrong a ekg:Player ;
+    rdfs:label "Adam Armstrong" ;
+    ekg:PARTICIPATED_IN data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PERFORMED data:event_0005,
+        data:event_0006 ;
+    ekg:PLAYS_FOR data:team_blackburn_rovers .
+
+ekg:ASSISTED_BY a owl:ObjectProperty ;
+    rdfs:label "ASSISTED_BY" ;
+    rdfs:domain ekg:Event ;
+    rdfs:range ekg:Player .
+
+ekg:INVOLVED_IN a owl:ObjectProperty ;
+    rdfs:label "INVOLVED_IN" ;
+    rdfs:domain ekg:Team ;
+    rdfs:range ekg:Event .
+
+ekg:IN_MATCH a owl:ObjectProperty ;
+    rdfs:label "IN_MATCH" ;
+    rdfs:domain ekg:Event ;
+    rdfs:range ekg:Match .
+
+ekg:PARTICIPATED_IN a owl:ObjectProperty ;
+    rdfs:label "PARTICIPATED_IN" ;
+    rdfs:domain ekg:Player ;
+    rdfs:range ekg:Match .
+
+ekg:PERFORMED a owl:ObjectProperty ;
+    rdfs:label "PERFORMED" ;
+    rdfs:domain ekg:Player ;
+    rdfs:range ekg:Event .
+
+ekg:PLAYS_FOR a owl:ObjectProperty ;
+    rdfs:label "PLAYS_FOR" ;
+    rdfs:domain ekg:Player ;
+    rdfs:range ekg:Team .
+
+ekg:PRECEDED_BY a owl:ObjectProperty ;
+    rdfs:label "PRECEDED_BY" ;
+    rdfs:domain ekg:Event ;
+    rdfs:range ekg:Event .
+
+ekg:TRIGGERED a owl:ObjectProperty ;
+    rdfs:label "TRIGGERED" ;
+    rdfs:domain ekg:ActionEvent ;
+    rdfs:range ekg:CardEvent .
+
+ekg:hasConfidence a owl:DatatypeProperty ;
+    rdfs:label "hasConfidence" ;
+    rdfs:range xsd:float .
+
+ekg:hasDate a owl:DatatypeProperty ;
+    rdfs:label "hasDate" ;
+    rdfs:range xsd:string .
+
+ekg:hasEventType a owl:DatatypeProperty ;
+    rdfs:label "hasEventType" ;
+    rdfs:range xsd:string .
+
+ekg:hasFullText a owl:DatatypeProperty ;
+    rdfs:label "hasFullText" ;
+    rdfs:range xsd:string .
+
+ekg:hasTime a owl:DatatypeProperty ;
+    rdfs:label "hasTime" ;
+    rdfs:range xsd:string .
+
+ekg:hasTimeMin a owl:DatatypeProperty ;
+    rdfs:label "hasTimeMin" ;
+    rdfs:range xsd:float .
+
+ekg:isMatched a owl:DatatypeProperty ;
+    rdfs:label "isMatched" ;
+    rdfs:range xsd:boolean .
+
+data:event_0001 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:hasConfidence 2.567e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 04:00" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:event_0002 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0001 ;
+    ekg:hasConfidence 4.978e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 04:30" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:event_0003 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0002 ;
+    ekg:hasConfidence 1.568e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 05:00" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:event_0004 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0003 ;
+    ekg:hasConfidence 4.297e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 05:30" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:event_0007 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0006 ;
+    ekg:hasConfidence 1.848e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 11:00" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:event_0008 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0007 ;
+    ekg:hasConfidence 6.345e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasTime "1st 11:30" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched false .
+
+data:team_blackburn_rovers a ekg:Team ;
+    rdfs:label "Blackburn Rovers" ;
+    ekg:INVOLVED_IN data:event_0005,
+        data:event_0006 .
+
+ekg:CardEvent a owl:Class ;
+    rdfs:label "CardEvent" ;
+    rdfs:subClassOf ekg:Event .
+
+data:event_0005 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0004 ;
+    ekg:hasConfidence 4.539e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasFullText "Attempt saved. Adam Armstrong (Blackburn Rovers) right footed shot from outside the box is saved in the centre of the goal. Assisted by Stewart Downing." ;
+    ekg:hasTime "1st 07:30" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched true .
+
+data:event_0006 a ekg:ActionEvent ;
+    ekg:IN_MATCH data:match_2019_10_01_blackburn_rovers_nottingham_forest ;
+    ekg:PRECEDED_BY data:event_0005 ;
+    ekg:hasConfidence 2.332e-01 ;
+    ekg:hasEventType "Goal" ;
+    ekg:hasFullText "Attempt saved. Adam Armstrong (Blackburn Rovers) right footed shot from outside the box is saved in the centre of the goal. Assisted by Stewart Downing." ;
+    ekg:hasTime "1st 09:30" ;
+    ekg:hasTimeMin 0e+00 ;
+    ekg:isMatched true .
+
+ekg:Match a owl:Class ;
+    rdfs:label "Match" .
+
+ekg:Team a owl:Class ;
+    rdfs:label "Team" .
+
+ekg:Player a owl:Class ;
+    rdfs:label "Player" .
+
+ekg:Event a owl:Class ;
+    rdfs:label "Event" .
+
+data:match_2019_10_01_blackburn_rovers_nottingham_forest a ekg:Match ;
+    rdfs:label "2019-10-01 - Blackburn Rovers - Nottingham Forest" ;
+    ekg:hasDate "2019-10-01" .
+
+ekg:ActionEvent a owl:Class ;
+    rdfs:label "ActionEvent" ;
+    rdfs:subClassOf ekg:Event .
+

@@ -1,0 +1,106 @@
+@prefix data: <http://soccerekg.org/data#> .
+@prefix ekg: <http://soccerekg.org/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+data:player_joe_lolley a ekg:Player ;
+    rdfs:label "Joe Lolley" ;
+    ekg:PERFORMED data:event_0001 ;
+    ekg:PLAYS_FOR data:team_nottingham_forest .
+
+ekg:ASSISTED_BY a owl:ObjectProperty ;
+    rdfs:label "ASSISTED_BY" ;
+    rdfs:domain ekg:Event ;
+    rdfs:range ekg:Player .
+
+ekg:INVOLVED_IN a owl:ObjectProperty ;
+    rdfs:label "INVOLVED_IN" ;
+    rdfs:domain ekg:Team ;
+    rdfs:range ekg:Event .
+
+ekg:IN_MATCH a owl:ObjectProperty ;
+    rdfs:label "IN_MATCH" ;
+    rdfs:domain ekg:Event ;
+    rdfs:range ekg:Match .
+
+ekg:PARTICIPATED_IN a owl:ObjectProperty ;
+    rdfs:label "PARTICIPATED_IN" ;
+    rdfs:domain ekg:Player ;
+    rdfs:range ekg:Match .
+
+ekg:PERFORMED a owl:ObjectProperty ;
+    rdfs:label "PERFORMED" ;
+    rdfs:domain ekg:Player ;
+    rdfs:range ekg:Event .
+
+ekg:PLAYS_FOR a owl:ObjectProperty ;
+    rdfs:label "PLAYS_FOR" ;
+    rdfs:domain ekg:Player ;
+    rdfs:range ekg:Team .
+
+ekg:PRECEDED_BY a owl:ObjectProperty ;
+    rdfs:label "PRECEDED_BY" ;
+    rdfs:domain ekg:Event ;
+    rdfs:range ekg:Event .
+
+ekg:TRIGGERED a owl:ObjectProperty ;
+    rdfs:label "TRIGGERED" ;
+    rdfs:domain ekg:ActionEvent ;
+    rdfs:range ekg:CardEvent .
+
+ekg:hasConfidence a owl:DatatypeProperty ;
+    rdfs:label "hasConfidence" ;
+    rdfs:range xsd:float .
+
+ekg:hasDate a owl:DatatypeProperty ;
+    rdfs:label "hasDate" ;
+    rdfs:range xsd:string .
+
+ekg:hasEventType a owl:DatatypeProperty ;
+    rdfs:label "hasEventType" ;
+    rdfs:range xsd:string .
+
+ekg:hasFullText a owl:DatatypeProperty ;
+    rdfs:label "hasFullText" ;
+    rdfs:range xsd:string .
+
+ekg:hasTime a owl:DatatypeProperty ;
+    rdfs:label "hasTime" ;
+    rdfs:range xsd:string .
+
+ekg:hasTimeMin a owl:DatatypeProperty ;
+    rdfs:label "hasTimeMin" ;
+    rdfs:range xsd:float .
+
+ekg:isMatched a owl:DatatypeProperty ;
+    rdfs:label "isMatched" ;
+    rdfs:range xsd:boolean .
+
+data:event_0001 a ekg:ActionEvent ;
+    ekg:hasEventType "Shot" ;
+    ekg:hasTime "1'" .
+
+data:team_nottingham_forest a ekg:Team ;
+    rdfs:label "Nottingham Forest" .
+
+ekg:CardEvent a owl:Class ;
+    rdfs:label "CardEvent" ;
+    rdfs:subClassOf ekg:Event .
+
+ekg:ActionEvent a owl:Class ;
+    rdfs:label "ActionEvent" ;
+    rdfs:subClassOf ekg:Event .
+
+ekg:Match a owl:Class ;
+    rdfs:label "Match" .
+
+ekg:Team a owl:Class ;
+    rdfs:label "Team" .
+
+ekg:Player a owl:Class ;
+    rdfs:label "Player" .
+
+ekg:Event a owl:Class ;
+    rdfs:label "Event" .
+

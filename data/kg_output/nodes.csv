@@ -1,0 +1,127 @@
+id,type,label,extra,matched
+joe_lolley,Player,Joe Lolley,nottingham_forest,
+sammy_ameobi,Player,Sammy Ameobi,nottingham_forest,
+adam_armstrong,Player,Adam Armstrong,blackburn_rovers,
+stewart_downing,Player,Stewart Downing,blackburn_rovers,
+samba_sow,Player,Samba Sow,nottingham_forest,
+sam_gallagher,Player,Sam Gallagher,blackburn_rovers,
+lewis_grabban,Player,Lewis Grabban,nottingham_forest,
+darragh_lenihan,Player,Darragh Lenihan,blackburn_rovers,
+yuri_ribeiro,Player,Yuri Ribeiro,nottingham_forest,
+lewis_travis,Player,Lewis Travis,blackburn_rovers,
+bradley_dack,Player,Bradley Dack,blackburn_rovers,
+greg_cunningham,Player,Greg Cunningham,blackburn_rovers,
+matthew_cash,Player,Matthew Cash,nottingham_forest,
+derrick_williams,Player,Derrick Williams,blackburn_rovers,
+danny_graham,Player,Danny Graham,blackburn_rovers,
+ben_watson,Player,Ben Watson,nottingham_forest,
+jo_o_carvalho,Player,João Carvalho,nottingham_forest,
+joe_rothwell,Player,Joe Rothwell,blackburn_rovers,
+jack_robinson,Player,Jack Robinson,nottingham_forest,
+albert_adomah,Player,Albert Adomah,nottingham_forest,
+lewis_holtby,Player,Lewis Holtby,blackburn_rovers,
+dominic_samuel,Player,Dominic Samuel,blackburn_rovers,
+elliott_bennett,Player,Elliott Bennett,blackburn_rovers,
+joe_worrall,Player,Joe Worrall,nottingham_forest,
+nottingham_forest,Team,Nottingham Forest,,
+blackburn_rovers,Team,Blackburn Rovers,,
+2019_10_01_blackburn_rovers_nottingham_forest,Match,2019-10-01 - Blackburn Rovers - Nottingham Forest,2019-10-01,
+event_0001,Event,Shot,1',True
+event_0002,Event,Corner,1',True
+event_0003,Event,Corner,7',True
+event_0004,Event,Shot,9',True
+event_0005,Event,Foul,9',True
+event_0006,Event,FreeKick,9',True
+event_0007,Event,Foul,15',True
+event_0008,Event,Offside,17',True
+event_0009,Event,Foul,21',True
+event_0010,Event,FreeKick,21',True
+event_0011,Event,Foul,22',True
+event_0012,Event,YellowCard,22',True
+event_0013,Event,Shot,23',True
+event_0014,Event,Corner,23',True
+event_0015,Event,Foul,25',True
+event_0016,Event,FreeKick,25',True
+event_0017,Event,FreeKick,26',True
+event_0018,Event,Foul,26',True
+event_0019,Event,Shot,27',True
+event_0020,Event,Shot,28',True
+event_0021,Event,Corner,28',True
+event_0022,Event,Shot,29',True
+event_0023,Event,Shot,31',True
+event_0024,Event,Foul,32',True
+event_0025,Event,FreeKick,32',True
+event_0026,Event,FreeKick,33',True
+event_0027,Event,Foul,33',True
+event_0028,Event,Foul,33',True
+event_0029,Event,YellowCard,33',True
+event_0030,Event,Foul,34',True
+event_0031,Event,Shot,42',True
+event_0032,Event,FreeKick,44',True
+event_0033,Event,Foul,44',True
+event_0034,Event,Shot,45',True
+event_0035,Event,Foul,45',True
+event_0036,Event,FreeKick,45',True
+event_0037,Event,Other,45',True
+event_0038,Event,Corner,46',True
+event_0039,Event,Shot,46',True
+event_0040,Event,Other,45'+2',True
+event_0041,Event,Corner,47',True
+event_0042,Event,Corner,49',True
+event_0043,Event,Shot,50',True
+event_0044,Event,Corner,52',True
+event_0045,Event,Shot,52',True
+event_0046,Event,FreeKick,54',True
+event_0047,Event,Foul,54',True
+event_0048,Event,Shot,56',True
+event_0049,Event,Foul,56',True
+event_0050,Event,FreeKick,56',True
+event_0051,Event,Shot,58',True
+event_0052,Event,Substitution,59',True
+event_0053,Event,Shot,60',True
+event_0054,Event,Foul,60',True
+event_0055,Event,FreeKick,60',True
+event_0056,Event,Foul,60',True
+event_0057,Event,YellowCard,60',True
+event_0058,Event,Substitution,62',True
+event_0059,Event,Goal,63',True
+event_0060,Event,Goal,65',True
+event_0061,Event,Offside,67',True
+event_0062,Event,Corner,68',True
+event_0063,Event,Shot,68',True
+event_0064,Event,Shot,70',True
+event_0065,Event,Shot,71',True
+event_0066,Event,Substitution,72',True
+event_0067,Event,Foul,73',True
+event_0068,Event,FreeKick,73',True
+event_0069,Event,Corner,76',True
+event_0070,Event,Shot,76',True
+event_0071,Event,Shot,76',True
+event_0072,Event,FreeKick,78',True
+event_0073,Event,Foul,78',True
+event_0074,Event,Corner,79',True
+event_0075,Event,Substitution,80',True
+event_0076,Event,Shot,82',True
+event_0077,Event,Corner,82',True
+event_0078,Event,Substitution,83',True
+event_0079,Event,Substitution,83',True
+event_0080,Event,Shot,83',True
+event_0081,Event,Corner,84',True
+event_0082,Event,Shot,85',True
+event_0083,Event,Shot,85',True
+event_0084,Event,Shot,85',True
+event_0085,Event,Shot,85',True
+event_0086,Event,Corner,85',True
+event_0087,Event,Shot,88',True
+event_0088,Event,Shot,88',True
+event_0089,Event,Shot,90',True
+event_0090,Event,Shot,90',True
+event_0091,Event,Foul,90'+1',True
+event_0092,Event,FreeKick,90'+1',True
+event_0093,Event,Foul,90'+2',True
+event_0094,Event,FreeKick,90'+2',True
+event_0095,Event,Foul,90'+3',True
+event_0096,Event,FreeKick,90'+3',True
+event_0097,Event,FreeKick,90'+4',True
+event_0098,Event,Foul,90'+4',True
+event_0099,Event,Other,90'+5',True
