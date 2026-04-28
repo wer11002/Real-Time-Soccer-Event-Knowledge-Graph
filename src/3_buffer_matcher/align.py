@@ -1,248 +1,318 @@
 """
-align.py
---------
-Matches video-detected events (from buffer.py) to ESPN scraped events.
+ekg_schema.py — RDF/OWL Schema for Soccer Event Knowledge Graph
+────────────────────────────────────────────────────────────────
 
-Matching rules:
-    1. Time must be within ±2 minutes
-    2. Action types must be compatible (fuzzy mapping — see ACTION_MAP)
-    3. Pick the candidate with the smallest time difference
+Defines the ontology (T-Box) and provides the EKG container (A-Box holder).
 
-Output per buffered event:
-    - matched   : True/False
-    - player    : name (if matched)
-    - team      : team (if matched)
-    - espn_time : ESPN-reported time (if matched)
-    - all original fields preserved
+T-Box: Classes and properties of the soccer domain
+   Classes    : Player, Team, Match, Event, ActionEvent, CardEvent
+   Properties : PERFORMED, PLAYS_FOR, PARTICIPATED_IN, IN_MATCH,
+                PRECEDED_BY, TRIGGERED, ASSISTED_BY, INVOLVED_IN
+
+A-Box: Instance data populated incrementally during the pipeline
+   (added by kg_builder.py as events stream in)
+
+TKG layer: validFrom / validUntil on PLAYS_FOR edges
+VLM layer: hasDescription / hasJersey on Event nodes
+
+Serialization: Turtle (.ttl) by default.
 
 Quick test:
-    python align.py
+    python ekg_schema.py
 """
 
-import dataclasses
-from dataclasses import dataclass, asdict
-from typing import List, Optional, Dict
+from pathlib import Path
+from rdflib import Graph, Namespace, URIRef, Literal, RDF, RDFS, OWL, XSD
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FUZZY ACTION MAPPING
+# NAMESPACES
 # ═══════════════════════════════════════════════════════════════════════════
-# Maps video model action labels → compatible ESPN action labels
-# espn_scraper.py normalizes ESPN actions to: Shot, Goal, Foul, Corner,
-# Offside, Free_Kick, Substitution
 
-ACTION_MAP: Dict[str, List[str]] = {
+EKG  = Namespace("http://soccerekg.org/ontology#")
+INST = Namespace("http://soccerekg.org/data#")
 
-    # shots and goals
-    "Shot"        : ["Shot", "Goal"],
-    "Goal"        : ["Goal", "Shot"],       # a goal is also a shot
-    "Penalty"     : ["Goal", "Shot"],
 
-    # fouls and cards
-    "Foul"        : ["Foul", "Free_Kick"],  # foul often leads to free kick
-    "Free_Kick"   : ["Free_Kick", "Foul"],
+# ═══════════════════════════════════════════════════════════════════════════
+# CLASSES (T-Box)
+# ═══════════════════════════════════════════════════════════════════════════
 
-    # set pieces
-    "Corner"      : ["Corner"],
-    "Offside"     : ["Offside"],
-
-    # other
-    "Substitution": ["Substitution"],
-    "Pass"        : ["Shot", "Foul"],       # pass motion sometimes looks like shot/foul
+CLASSES = {
+    "Player"      : EKG.Player,
+    "Team"        : EKG.Team,
+    "Match"       : EKG.Match,
+    "Event"       : EKG.Event,
+    "ActionEvent" : EKG.ActionEvent,
+    "CardEvent"   : EKG.CardEvent,
 }
 
 
-def action_matches(video_action: str, espn_action: str) -> bool:
-    """
-    Check if a video-detected action is compatible with an ESPN action.
-    Uses ACTION_MAP, falls back to direct string comparison.
-    """
-    va = video_action.strip()
-    ea = espn_action.strip()
+# ═══════════════════════════════════════════════════════════════════════════
+# OBJECT PROPERTIES
+# ═══════════════════════════════════════════════════════════════════════════
 
-    compatible = ACTION_MAP.get(va, [va])
-    return ea in compatible
+OBJECT_PROPERTIES = {
+    # Ren-ev: entity → event
+    "PERFORMED"       : (EKG.PERFORMED,       EKG.Player,      EKG.Event),
+    "INVOLVED_IN"     : (EKG.INVOLVED_IN,     EKG.Team,        EKG.Event),
+    "ASSISTED_BY"     : (EKG.ASSISTED_BY,     EKG.Event,       EKG.Player),
+    # Ren-en: entity → entity
+    "PLAYS_FOR"       : (EKG.PLAYS_FOR,       EKG.Player,      EKG.Team),
+    "PARTICIPATED_IN" : (EKG.PARTICIPATED_IN, EKG.Player,      EKG.Match),
+    "IN_MATCH"        : (EKG.IN_MATCH,        EKG.Event,       EKG.Match),
+    # Rev-ev: event → event
+    "PRECEDED_BY"     : (EKG.PRECEDED_BY,     EKG.Event,       EKG.Event),
+    "TRIGGERED"       : (EKG.TRIGGERED,       EKG.ActionEvent, EKG.CardEvent),
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# MATCHED EVENT — output of alignment
+# DATATYPE PROPERTIES
 # ═══════════════════════════════════════════════════════════════════════════
 
-@dataclass
-class MatchedEvent:
-    """Result of aligning one video event against the ESPN data."""
+DATATYPE_PROPERTIES = {
+    # ── existing ──────────────────────────────────────────────────────────
+    "hasTime"        : XSD.string,    # "9'" or "45+2'"
+    "hasTimeMin"     : XSD.float,     # 9.0
+    "hasEventType"   : XSD.string,    # "Shot", "YellowCard"
+    "hasConfidence"  : XSD.float,     # 0.87
+    "isMatched"      : XSD.boolean,   # True/False (gray node if False)
+    "hasFullText"    : XSD.string,    # commentary text from ESPN
+    "hasDate"        : XSD.string,    # "2019-10-01"
 
-    # original video-side fields
-    video_time : float
-    action     : str
-    confidence : float
-    gametime   : str
+    # ── TKG layer (temporal validity on PLAYS_FOR edges) ──────────────────
+    "validFrom"      : XSD.date,      # when player joined team
+    "validUntil"     : XSD.date,      # when player left team
 
-    # alignment result
-    matched    : bool
-    player     : Optional[str]  = None
-    team       : Optional[str]  = None
-    espn_time  : Optional[float]= None   # ESPN-reported minute (e.g. 9.0)
-    espn_text  : Optional[str]  = None   # raw commentary text
-    time_diff  : Optional[float]= None   # |video_min - espn_min| in minutes
-
-    def to_dict(self):
-        return asdict(self)
+    # ── VLM layer (from Qwen2-VL output) ─────────────────────────────────
+    "hasDescription" : XSD.string,    # "Player #7 takes a right-footed shot..."
+    "hasJersey"      : XSD.string,    # "7" — jersey number read by VLM
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CORE MATCHING LOGIC
+# T-BOX BUILDER
 # ═══════════════════════════════════════════════════════════════════════════
 
-def match_event(
-    video_event        : dict,
-    espn_events        : List[dict],
-    time_tolerance_min : float = 2.0,
-) -> MatchedEvent:
-    """
-    Match one video event against the list of ESPN events.
+def build_tbox(g: Graph):
+    """Populate the graph with T-Box definitions. Called once at startup."""
 
-    Args:
-        video_event        : dict with video_time, action, confidence, gametime
-        espn_events        : list of dicts from espn_scraper.py
-        time_tolerance_min : max time difference in minutes (default ±2 min)
+    g.bind("ekg",  EKG)
+    g.bind("data", INST)
+    g.bind("owl",  OWL)
+    g.bind("rdf",  RDF)
+    g.bind("rdfs", RDFS)
+    g.bind("xsd",  XSD)
 
-    Returns:
-        MatchedEvent with matched=True if a match was found
-    """
-    video_minute = video_event["video_time"] / 60.0
-    video_action = video_event["action"]
+    # classes
+    for name, uri in CLASSES.items():
+        g.add((uri, RDF.type,   OWL.Class))
+        g.add((uri, RDFS.label, Literal(name)))
 
-    # find all compatible ESPN events within time window
-    candidates = []
-    for e in espn_events:
-        time_diff = abs(e["time"] - video_minute)
-        if time_diff <= time_tolerance_min and action_matches(video_action, e["action"]):
-            candidates.append((time_diff, e))
+    g.add((EKG.ActionEvent, RDFS.subClassOf, EKG.Event))
+    g.add((EKG.CardEvent,   RDFS.subClassOf, EKG.Event))
 
-    # no candidate → unmatched (becomes gray node in KG)
-    if not candidates:
-        return MatchedEvent(
-            video_time = video_event["video_time"],
-            action     = video_action,
-            confidence = video_event["confidence"],
-            gametime   = video_event["gametime"],
-            matched    = False,
+    # object properties
+    for name, (uri, domain, range_) in OBJECT_PROPERTIES.items():
+        g.add((uri, RDF.type,    OWL.ObjectProperty))
+        g.add((uri, RDFS.label,  Literal(name)))
+        g.add((uri, RDFS.domain, domain))
+        g.add((uri, RDFS.range,  range_))
+
+    # datatype properties
+    for name, range_ in DATATYPE_PROPERTIES.items():
+        uri = EKG[name]
+        g.add((uri, RDF.type,   OWL.DatatypeProperty))
+        g.add((uri, RDFS.label, Literal(name)))
+        g.add((uri, RDFS.range, range_))
+
+    return g
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EKG CONTAINER
+# ═══════════════════════════════════════════════════════════════════════════
+
+class EKG_Graph:
+    """Wraps an rdflib Graph with T-Box pre-loaded. Grows A-Box in real-time."""
+
+    def __init__(self):
+        self.g = Graph()
+        build_tbox(self.g)
+        self._seen_players : set = set()
+        self._seen_teams   : set = set()
+        self._seen_matches : set = set()
+        self._event_count  : int = 0
+
+    # ── URI helpers ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def player_uri(player_id: str) -> URIRef:
+        return INST[f"player_{player_id}"]
+
+    @staticmethod
+    def team_uri(team_id: str) -> URIRef:
+        return INST[f"team_{team_id}"]
+
+    @staticmethod
+    def match_uri(match_id: str) -> URIRef:
+        return INST[f"match_{match_id}"]
+
+    @staticmethod
+    def event_uri(event_id: str) -> URIRef:
+        return INST[f"event_{event_id}"]
+
+    @staticmethod
+    def plays_for_uri(player_id: str, team_id: str, date: str) -> URIRef:
+        """URI for a time-bounded PLAYS_FOR edge (TKG reification)."""
+        return INST[f"plays_for_{player_id}_{team_id}_{date}"]
+
+    # ── stats ──────────────────────────────────────────────────────────────
+
+    def stats(self) -> str:
+        return (
+            f"{len(self._seen_players)} players | "
+            f"{self._event_count} events | "
+            f"{len(self._seen_teams)} teams | "
+            f"{len(self.g)} triples"
         )
 
-    # pick candidate with smallest time difference
-    candidates.sort(key=lambda x: x[0])
-    best_diff, best = candidates[0]
+    def triple_count(self) -> int:
+        return len(self.g)
 
-    return MatchedEvent(
-        video_time = video_event["video_time"],
-        action     = video_action,
-        confidence = video_event["confidence"],
-        gametime   = video_event["gametime"],
-        matched    = True,
-        player     = best.get("player"),
-        team       = best.get("team"),
-        espn_time  = best.get("time"),
-        espn_text  = best.get("full_text"),
-        time_diff  = round(best_diff, 2),
-    )
+    # ── SPARQL query helpers ───────────────────────────────────────────────
 
+    def events_by_type(self, event_type: str) -> list:
+        q = """
+        SELECT ?e WHERE {
+            ?e ekg:hasEventType ?t .
+            FILTER (STR(?t) = ?etype)
+        }
+        """
+        return [row[0] for row in self.g.query(
+            q, initBindings={"etype": Literal(event_type)})]
 
-def align_buffer(
-    buffer_events      : List,
-    espn_events        : List[dict],
-    time_tolerance_min : float = 2.0,
-) -> List[MatchedEvent]:
-    """
-    Align all buffered video events against ESPN data.
+    def count_cards(self, player_id: str, color: str = "YellowCard") -> int:
+        q = """
+        SELECT (COUNT(?e) AS ?c) WHERE {
+            ?p ekg:PERFORMED ?e .
+            ?e a ekg:CardEvent .
+            ?e ekg:hasEventType ?t .
+            FILTER (STR(?t) = ?color)
+        }
+        """
+        result = self.g.query(q, initBindings={
+            "p"     : self.player_uri(player_id),
+            "color" : Literal(color),
+        })
+        for row in result:
+            return int(row[0])
+        return 0
 
-    Args:
-        buffer_events : list of VideoEvent objects OR plain dicts (both work)
-        espn_events   : list of dicts from espn_scraper.py
-    """
-    results = []
-    for v in buffer_events:
-        # handle both VideoEvent dataclass objects and plain dicts
-        if dataclasses.is_dataclass(v) and not isinstance(v, type):
-            v_dict = {
-                "video_time" : v.video_time,
-                "action"     : v.action,
-                "confidence" : v.confidence,
-                "gametime"   : v.gametime,
-            }
-        else:
-            v_dict = v
+    def events_for_player(self, player_id: str) -> list:
+        q = "SELECT ?e WHERE { ?p ekg:PERFORMED ?e . }"
+        return [row[0] for row in self.g.query(
+            q, initBindings={"p": self.player_uri(player_id)})]
 
-        matched = match_event(v_dict, espn_events, time_tolerance_min)
-        results.append(matched)
+    def player_team_at(self, player_id: str, date: str) -> list:
+        """
+        TKG query: which team was a player on at a given date?
+        Uses validFrom / validUntil on PLAYS_FOR edges.
+        """
+        q = """
+        SELECT ?team WHERE {
+            ?edge ekg:subject  ?p .
+            ?edge ekg:object   ?team .
+            ?edge ekg:validFrom  ?from .
+            OPTIONAL { ?edge ekg:validUntil ?until }
+            FILTER (?from <= ?date)
+            FILTER (!BOUND(?until) || ?until >= ?date)
+        }
+        """
+        return [row[0] for row in self.g.query(q, initBindings={
+            "p"    : self.player_uri(player_id),
+            "date" : Literal(date, datatype=XSD.date),
+        })]
 
-    return results
+    # ── save ───────────────────────────────────────────────────────────────
+
+    def save(self, out_path: Path, format: str = "turtle"):
+        out_path = Path(out_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        self.g.serialize(destination=str(out_path), format=format)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SUMMARY HELPER
+# QUICK SELF-TEST
 # ═══════════════════════════════════════════════════════════════════════════
-
-def summarize(matched_events: List[MatchedEvent]) -> str:
-    """Human-readable summary of alignment results."""
-    if not matched_events:
-        return "no events aligned"
-
-    matched_count = sum(1 for e in matched_events if e.matched)
-    lines = [f"\n── Alignment results: {matched_count}/{len(matched_events)} matched ──"]
-
-    for e in matched_events:
-        if e.matched:
-            lines.append(
-                f"  ✓ {e.gametime:<12} {e.action:<10} → {e.player or '—':<20} "
-                f"({e.team})  Δt={e.time_diff}min"
-            )
-        else:
-            lines.append(
-                f"  ✗ {e.gametime:<12} {e.action:<10} → UNKNOWN (no ESPN match)"
-            )
-    return "\n".join(lines)
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# quick self-test — uses REAL ESPN data via espn_scraper
-# ══════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
 
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent / "2_web_scraper"))
-    from espn_scraper import ESPNScraper
+    print("─── ekg_schema.py self-test ───\n")
 
-    print("─── align.py self-test (real ESPN data) ───\n")
+    ekg = EKG_Graph()
+    print(f"T-Box loaded: {len(ekg.g)} triples\n")
 
-    # load real ESPN data
-    scraper = ESPNScraper()
-    scraper.find_and_load("2019-10-01", "Blackburn Rovers", "Nottingham Forest")
-    espn_events = scraper.get_all_events()
-    print(f"ESPN: {len(espn_events)} events loaded\n")
+    print("── T-Box classes ──")
+    for name, uri in CLASSES.items():
+        print(f"  {name:<14} {uri}")
 
-    # simulate video buffer events (what action_recognizer would produce)
-    video_events = [
-        {"video_time":  554.2, "action": "Shot",   "confidence": 0.37, "gametime": "1st 09:14"},
-        {"video_time":  720.0, "action": "Foul",   "confidence": 0.73, "gametime": "1st 12:00"},
-        {"video_time": 1080.5, "action": "Goal",   "confidence": 0.09, "gametime": "1st 18:00"},
-        {"video_time": 1400.0, "action": "Corner", "confidence": 0.04, "gametime": "1st 23:20"},
-        {"video_time": 1800.0, "action": "Shot",   "confidence": 0.65, "gametime": "1st 30:00"},
-    ]
+    print("\n── T-Box object properties ──")
+    for name, (uri, domain, range_) in OBJECT_PROPERTIES.items():
+        print(f"  {name:<18} {domain.split('#')[-1]} → {range_.split('#')[-1]}")
 
-    print(f"Video buffer: {len(video_events)} events\n")
+    print("\n── T-Box datatype properties ──")
+    for name, range_ in DATATYPE_PROPERTIES.items():
+        tag = ""
+        if name in ("validFrom", "validUntil"):
+            tag = "  ← TKG"
+        elif name in ("hasDescription", "hasJersey"):
+            tag = "  ← VLM"
+        print(f"  {name:<16} → {range_.split('#')[-1]}{tag}")
 
-    # run alignment
-    results = align_buffer(video_events, espn_events, time_tolerance_min=2.0)
-    print(summarize(results))
+    print("\n── Test A-Box (with TKG + VLM triples) ──")
+    from rdflib import RDF, RDFS
 
-    # fuzzy match check
-    print("\n── Fuzzy-match check ──")
-    print(f"  'Goal' ↔ 'Shot'   : {action_matches('Goal',   'Shot')}   (should be True)")
-    print(f"  'Shot' ↔ 'Goal'   : {action_matches('Shot',   'Goal')}   (should be True)")
-    print(f"  'Corner' ↔ 'Foul' : {action_matches('Corner', 'Foul')}  (should be False)")
-    print(f"  'Foul' ↔ 'Free_Kick': {action_matches('Foul', 'Free_Kick')}  (should be True)")
+    lolley  = ekg.player_uri("joe_lolley")
+    team    = ekg.team_uri("nottingham_forest")
+    event   = ekg.event_uri("0001")
+    edge    = ekg.plays_for_uri("joe_lolley", "nottingham_forest", "2019-10-01")
+
+    # player
+    ekg.g.add((lolley, RDF.type,   EKG.Player))
+    ekg.g.add((lolley, RDFS.label, Literal("Joe Lolley")))
+
+    # team
+    ekg.g.add((team, RDF.type,   EKG.Team))
+    ekg.g.add((team, RDFS.label, Literal("Nottingham Forest")))
+
+    # TKG edge: PLAYS_FOR with validFrom
+    ekg.g.add((edge, RDF.type,        EKG.PLAYS_FOR))
+    ekg.g.add((edge, EKG.subject,     lolley))
+    ekg.g.add((edge, EKG.object,      team))
+    ekg.g.add((edge, EKG.validFrom,   Literal("2017-07-01", datatype=XSD.date)))
+    ekg.g.add((edge, EKG.validUntil,  Literal("2021-06-30", datatype=XSD.date)))
+
+    # event with VLM description + jersey
+    ekg.g.add((event, RDF.type,           EKG.ActionEvent))
+    ekg.g.add((event, EKG.hasEventType,   Literal("Shot")))
+    ekg.g.add((event, EKG.hasTime,        Literal("1'")))
+    ekg.g.add((event, EKG.hasJersey,      Literal("23")))
+    ekg.g.add((event, EKG.hasDescription, Literal(
+        "Player #23 in red kit takes a left-footed shot from the centre of the box")))
+
+    ekg.g.add((lolley, EKG.PERFORMED, event))
+
+    print(f"  {ekg.stats()}")
+
+    out = Path("data/kg_output/test_ekg.ttl")
+    ekg.save(out)
+    print(f"  Saved to: {out}")
+
+    print("\n── Sample Turtle output ──")
+    with open(out) as f:
+        for i, line in enumerate(f):
+            if i > 35: print("  ..."); break
+            print(f"  {line.rstrip()}")
 
     print("\n✓ all good!")

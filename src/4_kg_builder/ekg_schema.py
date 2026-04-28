@@ -12,6 +12,9 @@ T-Box: Classes and properties of the soccer domain
 A-Box: Instance data populated incrementally during the pipeline
    (added by kg_builder.py as events stream in)
 
+TKG layer: validFrom / validUntil on PLAYS_FOR edges
+VLM layer: hasDescription / hasJersey on Event nodes
+
 Serialization: Turtle (.ttl) by default.
 
 Quick test:
@@ -26,10 +29,7 @@ from rdflib import Graph, Namespace, URIRef, Literal, RDF, RDFS, OWL, XSD
 # NAMESPACES
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Our project namespace
-EKG = Namespace("http://soccerekg.org/ontology#")
-
-# Instance namespace (for actual players, events, matches etc.)
+EKG  = Namespace("http://soccerekg.org/ontology#")
 INST = Namespace("http://soccerekg.org/data#")
 
 
@@ -42,58 +42,61 @@ CLASSES = {
     "Team"        : EKG.Team,
     "Match"       : EKG.Match,
     "Event"       : EKG.Event,
-    "ActionEvent" : EKG.ActionEvent,   # Shot, Goal, Foul, Corner...
-    "CardEvent"   : EKG.CardEvent,     # YellowCard, RedCard
+    "ActionEvent" : EKG.ActionEvent,
+    "CardEvent"   : EKG.CardEvent,
 }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# OBJECT PROPERTIES (edges between instances)
+# OBJECT PROPERTIES
 # ═══════════════════════════════════════════════════════════════════════════
 
 OBJECT_PROPERTIES = {
-    # ── Ren-ev: entity → event ───────────────────────────────────────────
-    "PERFORMED"       : (EKG.PERFORMED,       EKG.Player, EKG.Event),
-    "INVOLVED_IN"     : (EKG.INVOLVED_IN,     EKG.Team,   EKG.Event),
-    "ASSISTED_BY"     : (EKG.ASSISTED_BY,     EKG.Event,  EKG.Player),
-
-    # ── Ren-en: entity → entity ──────────────────────────────────────────
-    "PLAYS_FOR"       : (EKG.PLAYS_FOR,       EKG.Player, EKG.Team),
-    "PARTICIPATED_IN" : (EKG.PARTICIPATED_IN, EKG.Player, EKG.Match),
-    "IN_MATCH"        : (EKG.IN_MATCH,        EKG.Event,  EKG.Match),
-
-    # ── Rev-ev: event → event ────────────────────────────────────────────
+    # Ren-ev: entity → event
+    "PERFORMED"       : (EKG.PERFORMED,       EKG.Player,      EKG.Event),
+    "INVOLVED_IN"     : (EKG.INVOLVED_IN,     EKG.Team,        EKG.Event),
+    "ASSISTED_BY"     : (EKG.ASSISTED_BY,     EKG.Event,       EKG.Player),
+    # Ren-en: entity → entity
+    "PLAYS_FOR"       : (EKG.PLAYS_FOR,       EKG.Player,      EKG.Team),
+    "PARTICIPATED_IN" : (EKG.PARTICIPATED_IN, EKG.Player,      EKG.Match),
+    "IN_MATCH"        : (EKG.IN_MATCH,        EKG.Event,       EKG.Match),
+    # Rev-ev: event → event
     "PRECEDED_BY"     : (EKG.PRECEDED_BY,     EKG.Event,       EKG.Event),
     "TRIGGERED"       : (EKG.TRIGGERED,       EKG.ActionEvent, EKG.CardEvent),
 }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# DATATYPE PROPERTIES (attributes on instances)
+# DATATYPE PROPERTIES
 # ═══════════════════════════════════════════════════════════════════════════
 
 DATATYPE_PROPERTIES = {
-    "hasTime"       : XSD.string,   # "9'" or "45+2'"
-    "hasTimeMin"    : XSD.float,    # 9.0
-    "hasEventType"  : XSD.string,   # "Shot", "YellowCard"
-    "hasConfidence" : XSD.float,    # 0.87
-    "isMatched"     : XSD.boolean,  # True/False
-    "hasFullText"   : XSD.string,   # commentary text
-    "hasDate"       : XSD.string,   # "2019-10-01"
+    # ── existing ──────────────────────────────────────────────────────────
+    "hasTime"        : XSD.string,    # "9'" or "45+2'"
+    "hasTimeMin"     : XSD.float,     # 9.0
+    "hasEventType"   : XSD.string,    # "Shot", "YellowCard"
+    "hasConfidence"  : XSD.float,     # 0.87
+    "isMatched"      : XSD.boolean,   # True/False (gray node if False)
+    "hasFullText"    : XSD.string,    # commentary text from ESPN
+    "hasDate"        : XSD.string,    # "2019-10-01"
+
+    # ── TKG layer (temporal validity on PLAYS_FOR edges) ──────────────────
+    "validFrom"      : XSD.date,      # when player joined team
+    "validUntil"     : XSD.date,      # when player left team
+
+    # ── VLM layer (from Qwen2-VL output) ─────────────────────────────────
+    "hasDescription" : XSD.string,    # "Player #7 takes a right-footed shot..."
+    "hasJersey"      : XSD.string,    # "7" — jersey number read by VLM
 }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# T-BOX BUILDER — called once at pipeline startup
+# T-BOX BUILDER
 # ═══════════════════════════════════════════════════════════════════════════
 
 def build_tbox(g: Graph):
-    """
-    Populate the graph with the T-Box (ontology definitions).
-    This is called once at the start — never changes after that.
-    """
+    """Populate the graph with T-Box definitions. Called once at startup."""
 
-    # bind prefixes for pretty Turtle output
     g.bind("ekg",  EKG)
     g.bind("data", INST)
     g.bind("owl",  OWL)
@@ -101,23 +104,22 @@ def build_tbox(g: Graph):
     g.bind("rdfs", RDFS)
     g.bind("xsd",  XSD)
 
-    # ── declare classes ──────────────────────────────────────────────────
+    # classes
     for name, uri in CLASSES.items():
-        g.add((uri, RDF.type, OWL.Class))
+        g.add((uri, RDF.type,   OWL.Class))
         g.add((uri, RDFS.label, Literal(name)))
 
-    # ActionEvent and CardEvent are subclasses of Event
     g.add((EKG.ActionEvent, RDFS.subClassOf, EKG.Event))
     g.add((EKG.CardEvent,   RDFS.subClassOf, EKG.Event))
 
-    # ── declare object properties with domain/range ──────────────────────
+    # object properties
     for name, (uri, domain, range_) in OBJECT_PROPERTIES.items():
         g.add((uri, RDF.type,    OWL.ObjectProperty))
         g.add((uri, RDFS.label,  Literal(name)))
         g.add((uri, RDFS.domain, domain))
         g.add((uri, RDFS.range,  range_))
 
-    # ── declare datatype properties ──────────────────────────────────────
+    # datatype properties
     for name, range_ in DATATYPE_PROPERTIES.items():
         uri = EKG[name]
         g.add((uri, RDF.type,   OWL.DatatypeProperty))
@@ -128,20 +130,15 @@ def build_tbox(g: Graph):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# EKG CONTAINER — holds the live graph + convenient query helpers
+# EKG CONTAINER
 # ═══════════════════════════════════════════════════════════════════════════
 
 class EKG_Graph:
-    """
-    Wraps an rdflib Graph with the T-Box pre-loaded.
-    Provides helper methods for the pipeline + SPARQL queries.
-    """
+    """Wraps an rdflib Graph with T-Box pre-loaded. Grows A-Box in real-time."""
 
     def __init__(self):
         self.g = Graph()
         build_tbox(self.g)
-
-        # track seen instances to avoid redundant work
         self._seen_players : set = set()
         self._seen_teams   : set = set()
         self._seen_matches : set = set()
@@ -165,38 +162,37 @@ class EKG_Graph:
     def event_uri(event_id: str) -> URIRef:
         return INST[f"event_{event_id}"]
 
+    @staticmethod
+    def plays_for_uri(player_id: str, team_id: str, date: str) -> URIRef:
+        """URI for a time-bounded PLAYS_FOR edge (TKG reification)."""
+        return INST[f"plays_for_{player_id}_{team_id}_{date}"]
+
     # ── stats ──────────────────────────────────────────────────────────────
 
     def stats(self) -> str:
-        """Short one-line summary."""
-        n_triples = len(self.g)
-        n_players = len(self._seen_players)
-        n_teams   = len(self._seen_teams)
-        n_events  = self._event_count
         return (
-            f"{n_players} players | "
-            f"{n_events} events | "
-            f"{n_teams} teams | "
-            f"{n_triples} triples"
+            f"{len(self._seen_players)} players | "
+            f"{self._event_count} events | "
+            f"{len(self._seen_teams)} teams | "
+            f"{len(self.g)} triples"
         )
 
     def triple_count(self) -> int:
         return len(self.g)
 
-    # ── query helpers (equivalent of the old ones) ────────────────────────
+    # ── SPARQL query helpers ───────────────────────────────────────────────
 
     def events_by_type(self, event_type: str) -> list:
-        """Return all event URIs with the given hasEventType."""
         q = """
         SELECT ?e WHERE {
             ?e ekg:hasEventType ?t .
             FILTER (STR(?t) = ?etype)
         }
         """
-        return [row[0] for row in self.g.query(q, initBindings={"etype": Literal(event_type)})]
+        return [row[0] for row in self.g.query(
+            q, initBindings={"etype": Literal(event_type)})]
 
     def count_cards(self, player_id: str, color: str = "YellowCard") -> int:
-        """Count how many yellow or red cards a player got (SPARQL query)."""
         q = """
         SELECT (COUNT(?e) AS ?c) WHERE {
             ?p ekg:PERFORMED ?e .
@@ -205,9 +201,8 @@ class EKG_Graph:
             FILTER (STR(?t) = ?color)
         }
         """
-        player_uri = self.player_uri(player_id)
         result = self.g.query(q, initBindings={
-            "p"     : player_uri,
+            "p"     : self.player_uri(player_id),
             "color" : Literal(color),
         })
         for row in result:
@@ -215,15 +210,33 @@ class EKG_Graph:
         return 0
 
     def events_for_player(self, player_id: str) -> list:
-        """Return all event URIs performed by a player."""
         q = "SELECT ?e WHERE { ?p ekg:PERFORMED ?e . }"
-        player_uri = self.player_uri(player_id)
-        return [row[0] for row in self.g.query(q, initBindings={"p": player_uri})]
+        return [row[0] for row in self.g.query(
+            q, initBindings={"p": self.player_uri(player_id)})]
 
-    # ── save to disk ───────────────────────────────────────────────────────
+    def player_team_at(self, player_id: str, date: str) -> list:
+        """
+        TKG query: which team was a player on at a given date?
+        Uses validFrom / validUntil on PLAYS_FOR edges.
+        """
+        q = """
+        SELECT ?team WHERE {
+            ?edge ekg:subject  ?p .
+            ?edge ekg:object   ?team .
+            ?edge ekg:validFrom  ?from .
+            OPTIONAL { ?edge ekg:validUntil ?until }
+            FILTER (?from <= ?date)
+            FILTER (!BOUND(?until) || ?until >= ?date)
+        }
+        """
+        return [row[0] for row in self.g.query(q, initBindings={
+            "p"    : self.player_uri(player_id),
+            "date" : Literal(date, datatype=XSD.date),
+        })]
+
+    # ── save ───────────────────────────────────────────────────────────────
 
     def save(self, out_path: Path, format: str = "turtle"):
-        """Save the graph to disk. Default Turtle (.ttl)."""
         out_path = Path(out_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         self.g.serialize(destination=str(out_path), format=format)
@@ -240,54 +253,66 @@ if __name__ == "__main__":
     ekg = EKG_Graph()
     print(f"T-Box loaded: {len(ekg.g)} triples\n")
 
-    # show the T-Box
-    print("── T-Box classes declared ──")
-    for cls_name, uri in CLASSES.items():
-        print(f"  {cls_name:<14} {uri}")
+    print("── T-Box classes ──")
+    for name, uri in CLASSES.items():
+        print(f"  {name:<14} {uri}")
 
-    print("\n── T-Box object properties declared ──")
+    print("\n── T-Box object properties ──")
     for name, (uri, domain, range_) in OBJECT_PROPERTIES.items():
-        d_label = domain.split("#")[-1]
-        r_label = range_.split("#")[-1]
-        print(f"  {name:<18} {d_label} → {r_label}")
+        print(f"  {name:<18} {domain.split('#')[-1]} → {range_.split('#')[-1]}")
 
-    print("\n── T-Box datatype properties declared ──")
+    print("\n── T-Box datatype properties ──")
     for name, range_ in DATATYPE_PROPERTIES.items():
-        r_label = range_.split("#")[-1]
-        print(f"  {name:<15} → {r_label}")
+        tag = ""
+        if name in ("validFrom", "validUntil"):
+            tag = "  ← TKG"
+        elif name in ("hasDescription", "hasJersey"):
+            tag = "  ← VLM"
+        print(f"  {name:<16} → {range_.split('#')[-1]}{tag}")
 
-    # try adding a few manual triples to see how A-Box works
-    print("\n── Adding test A-Box triples ──")
-    lolley = ekg.player_uri("joe_lolley")
-    team   = ekg.team_uri("nottingham_forest")
-    event  = ekg.event_uri("0001")
+    print("\n── Test A-Box (with TKG + VLM triples) ──")
+    from rdflib import RDF, RDFS
 
-    ekg.g.add((lolley, RDF.type, EKG.Player))
+    lolley  = ekg.player_uri("joe_lolley")
+    team    = ekg.team_uri("nottingham_forest")
+    event   = ekg.event_uri("0001")
+    edge    = ekg.plays_for_uri("joe_lolley", "nottingham_forest", "2019-10-01")
+
+    # player
+    ekg.g.add((lolley, RDF.type,   EKG.Player))
     ekg.g.add((lolley, RDFS.label, Literal("Joe Lolley")))
-    ekg.g.add((team,   RDF.type, EKG.Team))
-    ekg.g.add((team,   RDFS.label, Literal("Nottingham Forest")))
-    ekg.g.add((event,  RDF.type, EKG.ActionEvent))
-    ekg.g.add((event,  EKG.hasEventType, Literal("Shot")))
-    ekg.g.add((event,  EKG.hasTime,      Literal("1'")))
 
-    ekg.g.add((lolley, EKG.PLAYS_FOR,  team))
-    ekg.g.add((lolley, EKG.PERFORMED,  event))
+    # team
+    ekg.g.add((team, RDF.type,   EKG.Team))
+    ekg.g.add((team, RDFS.label, Literal("Nottingham Forest")))
+
+    # TKG edge: PLAYS_FOR with validFrom
+    ekg.g.add((edge, RDF.type,        EKG.PLAYS_FOR))
+    ekg.g.add((edge, EKG.subject,     lolley))
+    ekg.g.add((edge, EKG.object,      team))
+    ekg.g.add((edge, EKG.validFrom,   Literal("2017-07-01", datatype=XSD.date)))
+    ekg.g.add((edge, EKG.validUntil,  Literal("2021-06-30", datatype=XSD.date)))
+
+    # event with VLM description + jersey
+    ekg.g.add((event, RDF.type,           EKG.ActionEvent))
+    ekg.g.add((event, EKG.hasEventType,   Literal("Shot")))
+    ekg.g.add((event, EKG.hasTime,        Literal("1'")))
+    ekg.g.add((event, EKG.hasJersey,      Literal("23")))
+    ekg.g.add((event, EKG.hasDescription, Literal(
+        "Player #23 in red kit takes a left-footed shot from the centre of the box")))
+
+    ekg.g.add((lolley, EKG.PERFORMED, event))
 
     print(f"  {ekg.stats()}")
-    print(f"  Total triples: {ekg.triple_count()}")
 
-    # save to disk
-    out_path = Path("data/kg_output/test_ekg.ttl")
-    ekg.save(out_path)
-    print(f"\n  Saved Turtle to: {out_path}")
+    out = Path("data/kg_output/test_ekg.ttl")
+    ekg.save(out)
+    print(f"  Saved to: {out}")
 
-    # show the first few lines of the output
-    print("\n── First lines of Turtle output ──")
-    with open(out_path) as f:
+    print("\n── Sample Turtle output ──")
+    with open(out) as f:
         for i, line in enumerate(f):
-            if i > 30:
-                print("  ...")
-                break
+            if i > 35: print("  ..."); break
             print(f"  {line.rstrip()}")
 
     print("\n✓ all good!")
